@@ -1,0 +1,89 @@
+
+<resources>
+    <string name="app_name">Landlock Test</string>
+
+    <!-- Layout labels -->
+    <string name="label_landlock_version">Landlock Version</string>
+    <string name="label_network_rules">Network Access Rules</string>
+    <string name="label_file_rw_test">File Read/Write Test</string>
+    <string name="label_file_rules">File Access Rules</string>
+    <string name="label_output">Output</string>
+    <string name="label_read_file">Read File</string>
+    <string name="label_write_file">Write File</string>
+
+    <!-- Layout buttons -->
+    <string name="btn_query_version">Query Version</string>
+    <string name="btn_net_op_new_thread">Network Ops (New Thread)</string>
+    <string name="btn_write">Write</string>
+    <string name="btn_file_rw_new_thread">File R/W (New Thread)</string>
+    <string name="btn_file_rw_main_thread">File R/W (Main Thread, No LL)</string>
+
+    <!-- Layout hints -->
+    <string name="hint_listen_port_allowed">Allowed listen ports</string>
+    <string name="hint_connect_port_allowed">Allowed connect ports</string>
+    <string name="hint_listen_port_try">Test listen port</string>
+    <string name="hint_timeout_ms">Timeout (ms)</string>
+    <string name="hint_connect_ip_try">Test connect IP</string>
+    <string name="hint_connect_port_try">Test connect port</string>
+    <string name="hint_file_path">Enter file path</string>
+    <string name="hint_write_content">Enter content to write</string>
+    <string name="hint_ro_path">Read-only rule dirs, \':\' separated</string>
+    <string name="hint_rw_path">Read-write rule dirs, \':\' separated</string>
+
+    <!-- Radio buttons -->
+    <string name="radio_enable_ll">Enable LL</string>
+    <string name="radio_disable_ll">Disable LL</string>
+
+    <!-- Toast / runtime messages -->
+    <string name="msg_enter_read_filename">Please enter a filename to read first</string>
+    <string name="msg_enter_write_filename">Enter a filename to write</string>
+    <string name="msg_no_listen_port">Listen port not set</string>
+    <string name="msg_no_connect_port">Connect port/IP not set</string>
+    <string name="msg_no_listen_port_allowed">Allowed listen ports not set</string>
+    <string name="msg_no_connect_port_allowed">Allowed connect ports not set</string>
+    <string name="msg_prepare_rules">---Preparing rules:\n</string>
+    <string name="msg_ro_dirs">Read-only dirs: </string>
+    <string name="msg_rw_dirs">Read-write dirs: </string>
+    <string name="msg_file_rules_ok">File access rules set successfully\n</string>
+    <string name="msg_file_rules_fail">Failed to set file access rules, error code: </string>
+    <string name="msg_landlock_not_active">\nLandlock not active\n</string>
+    <string name="msg_listen_ports">Allowed listen ports: </string>
+    <string name="msg_connect_ports">Allowed connect ports: </string>
+    <string name="msg_net_rules_ok">Network rules set successfully\n</string>
+    <string name="msg_net_rules_fail">Failed to set network rules, error code: </string>
+    <string name="msg_try_read_file">\n---Attempting to read file: </string>
+    <string name="msg_file_content">, file content:\n</string>
+    <string name="msg_new_thread_start">Running in new thread\n</string>
+    <string name="msg_main_thread_start">Running in main thread\n</string>
+    <string name="msg_landlock_supported">Landlock is supported on this device\n</string>
+    <string name="msg_landlock_enabled">Landlock enabled\n</string>
+    <string name="msg_landlock_disabled">Landlock disabled\n</string>
+    <string name="msg_net_not_supported">Landlock version too low, network sandbox not supported\n</string>
+    <string name="msg_net_supported">Landlock supports network sandboxing\n</string>
+    <string name="msg_try_listen_port">\n---Attempting to listen on port: </string>
+    <string name="msg_try_connect">\n---Attempting to connect, IP: </string>
+    <string name="msg_port_label">, port: </string>
+    <string name="msg_content_written">Content written to file: </string>
+    <string name="msg_enter_filename_first">Please enter a filename first</string>
+    <string name="msg_thread_enable_ll">New thread will enable LandLock</string>
+    <string name="msg_thread_disable_ll">New thread will not enable LandLock</string>
+    <string name="msg_need_all_files_access">\"All files access\" permission required to access Download and other directories</string>
+    <string name="msg_net_config_failed">Failed to get Landlock network config, nothing to do!</string>
+    <string name="msg_test_config_failed">Failed to get test network config, nothing to do!</string>
+    <string name="msg_perm_result">Permission request result:\n</string>
+    <string name="msg_perm_granted">Granted</string>
+    <string name="msg_perm_denied">Denied</string>
+    <string name="msg_abi_version">Landlock ABI version: </string>
+    <string name="msg_listen_success">Successfully listening on port </string>
+    <string name="msg_listen_waiting">, waiting for client connection, timeout </string>
+    <string name="msg_listen_timeout_suffix">ms...\n</string>
+    <string name="msg_client_connected">Client connected: </string>
+    <string name="msg_conn_closed">Connection closed\n</string>
+    <string name="msg_listen_timeout">No client connected, closing listener on timeout.\n</string>
+    <string name="msg_connect_success">Successfully connected to </string>
+    <string name="msg_received_data">Received server message: </string>
+    <string name="msg_connect_failed">Connection failed: </string>
+    <string name="msg_written_to">\n---Content written to: </string>
+    <string name="msg_write_failed">\n---Write failed: </string>
+    <string name="msg_landlock_not_supported">Landlock not supported on this device, skipping tests\n</string>
+</resources>

@@ -1,0 +1,82 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    compileSdk 35
+    ndkVersion '30.0.14904198'
+
+    defaultConfig {
+        applicationId "com.vivo.landlocktest"
+        minSdk 31
+        targetSdk 33
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        externalNativeBuild {
+            cmake {
+                cppFlags ''
+                // 传递要编译的 landlock 版本（可选值：6.1, 6.6, 6.12, 6.18）
+                arguments "-DLANDLOCK_VERSION=6.18"
+                targets "landlock"
+            }
+        }
+        aaptOptions {
+            //ignoreAssetsPattern '!*.txt:!*.so:!*debug:!*release:!*.a'
+        }
+
+        sourceSets{
+            main{
+                assets{
+                    // 指定要打入apk的assets文件目录
+                    srcDirs = [
+                            //cmake编译结果目录
+                            'build/intermediates/cmake/debug/obj/arm64-v8a',
+                            //从其他地方准备好的文件，不是本工程编译的
+                            'src/main/assets'
+                    ]
+
+                }
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    //指明native编译使用的cmakelist.txt文件
+    externalNativeBuild {
+        cmake {
+            path file('src/main/cpp/CMakeLists.txt')
+            version '3.10.2'
+        }
+    }
+    buildFeatures {
+        viewBinding true
+    }
+    namespace 'com.vivo.landlocktest'
+}
+
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+    implementation 'com.google.guava:guava:32.1.3-android' // 适配Android的版本
+    implementation 'vivo.kmirrors.fileintegrity:lib:+'
+    implementation 'org.conscrypt:conscrypt-android:2.5.2'
+    implementation 'com.squareup.okhttp3:okhttp:4.11.0'
+}
+
+//apply plugin: 'com.didiglobal.booster'

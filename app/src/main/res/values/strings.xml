@@ -1,0 +1,89 @@
+
+<resources>
+    <string name="app_name">Landlock 测试</string>
+
+    <!-- Layout labels -->
+    <string name="label_landlock_version">Landlock 版本</string>
+    <string name="label_network_rules">网络访问规则</string>
+    <string name="label_file_rw_test">文件读写测试</string>
+    <string name="label_file_rules">文件访问规则</string>
+    <string name="label_output">输出</string>
+    <string name="label_read_file">读取文件</string>
+    <string name="label_write_file">写入文件</string>
+
+    <!-- Layout buttons -->
+    <string name="btn_query_version">查询版本</string>
+    <string name="btn_net_op_new_thread">新线程网络操作</string>
+    <string name="btn_write">写入</string>
+    <string name="btn_file_rw_new_thread">新线程读写文件</string>
+    <string name="btn_file_rw_main_thread">主线程读写文件（不启用LL）</string>
+
+    <!-- Layout hints -->
+    <string name="hint_listen_port_allowed">允许监听端口</string>
+    <string name="hint_connect_port_allowed">允许外联端口</string>
+    <string name="hint_listen_port_try">测试监听端口</string>
+    <string name="hint_timeout_ms">超时ms</string>
+    <string name="hint_connect_ip_try">测试外联IP</string>
+    <string name="hint_connect_port_try">测试外联端口</string>
+    <string name="hint_file_path">输入文件路径</string>
+    <string name="hint_write_content">输入要写入的内容</string>
+    <string name="hint_ro_path">只读规则目录列表，\':\'分隔</string>
+    <string name="hint_rw_path">读写规则目录列表，\':\'分隔</string>
+
+    <!-- Radio buttons -->
+    <string name="radio_enable_ll">启用LL</string>
+    <string name="radio_disable_ll">禁用LL</string>
+
+    <!-- Toast / runtime messages -->
+    <string name="msg_enter_read_filename">至少先输入要读的文件名</string>
+    <string name="msg_enter_write_filename">输入要写的文件名</string>
+    <string name="msg_no_listen_port">没有设置要监听端口号</string>
+    <string name="msg_no_connect_port">没有设置要外联端口号/ip</string>
+    <string name="msg_no_listen_port_allowed">没有设置允许监听端口列表</string>
+    <string name="msg_no_connect_port_allowed">没有设置允许外联端口列表</string>
+    <string name="msg_prepare_rules">---准备设置规则：\n</string>
+    <string name="msg_ro_dirs">只读目录：</string>
+    <string name="msg_rw_dirs">读写目录：</string>
+    <string name="msg_file_rules_ok">设置文件访问规则成功\n</string>
+    <string name="msg_file_rules_fail">设置文件访问规则失败, 失败码:</string>
+    <string name="msg_landlock_not_active">\nlandlock不生效\n</string>
+    <string name="msg_listen_ports">允许监听端口：</string>
+    <string name="msg_connect_ports">允许外联端口：</string>
+    <string name="msg_net_rules_ok">设置网络规则成功\n</string>
+    <string name="msg_net_rules_fail">设置网络规则失败, 失败码:</string>
+    <string name="msg_try_read_file">\n---尝试读取文件：</string>
+    <string name="msg_file_content">, 文件内容：\n</string>
+    <string name="msg_new_thread_start">在新线程中开始运行\n</string>
+    <string name="msg_main_thread_start">在主线程中运行\n</string>
+    <string name="msg_landlock_supported">本机支持landlock\n</string>
+    <string name="msg_landlock_enabled">开启landlock\n</string>
+    <string name="msg_landlock_disabled">关闭landlock\n</string>
+    <string name="msg_net_not_supported">本机landlock版本过低，不支持对网络进行沙盒\n</string>
+    <string name="msg_net_supported">本机landlock支持对网络进行沙盒\n</string>
+    <string name="msg_try_listen_port">\n---尝试监听端口：</string>
+    <string name="msg_try_connect">\n---尝试外联, ip: </string>
+    <string name="msg_port_label">, 端口：</string>
+    <string name="msg_content_written">内容已写入文件:</string>
+    <string name="msg_enter_filename_first">先输入要写的文件名</string>
+    <string name="msg_thread_enable_ll">新线程会启用LandLock</string>
+    <string name="msg_thread_disable_ll">新线程不会启用LandLock</string>
+    <string name="msg_need_all_files_access">需要\"所有文件访问权限\"才能访问Download等非媒体目录</string>
+    <string name="msg_net_config_failed">获取Landlock网络相关配置失败，无事可做！</string>
+    <string name="msg_test_config_failed">获取测试网络相关配置失败，无事可做！</string>
+    <string name="msg_perm_result">权限请求结果:\n</string>
+    <string name="msg_perm_granted">已授权</string>
+    <string name="msg_perm_denied">未授权</string>
+    <string name="msg_abi_version">landlock ABI version: </string>
+    <string name="msg_listen_success">成功监听端口 </string>
+    <string name="msg_listen_waiting">，等待客户端连接，超时时间 </string>
+    <string name="msg_listen_timeout_suffix">ms...\n</string>
+    <string name="msg_client_connected">客户端已连接: </string>
+    <string name="msg_conn_closed">连接关闭\n</string>
+    <string name="msg_listen_timeout">没有客户端连接，超时关闭监听。\n</string>
+    <string name="msg_connect_success">成功连接到 </string>
+    <string name="msg_received_data">收到服务器消息: </string>
+    <string name="msg_connect_failed">连接失败: </string>
+    <string name="msg_written_to">\n---已写入内容到: </string>
+    <string name="msg_write_failed">\n---写入文件失败: </string>
+    <string name="msg_landlock_not_supported">本机不支持landlock，不进行后续测试\n</string>
+</resources>
