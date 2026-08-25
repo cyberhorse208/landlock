@@ -5,6 +5,7 @@
     <!-- Layout labels -->
     <string name="label_landlock_version">Landlock 版本</string>
     <string name="label_network_rules">网络访问规则</string>
+    <string name="label_network_test">网络访问测试</string>
     <string name="label_file_rw_test">文件读写测试</string>
     <string name="label_file_rules">文件访问规则</string>
     <string name="label_output">输出</string>
@@ -19,8 +20,8 @@
     <string name="btn_file_rw_main_thread">主线程读写文件（不启用LL）</string>
 
     <!-- Layout hints -->
-    <string name="hint_listen_port_allowed">允许监听端口</string>
-    <string name="hint_connect_port_allowed">允许外联端口</string>
+    <string name="hint_listen_port_allowed">允许监听端口，\':\'分隔</string>
+    <string name="hint_connect_port_allowed">允许外联端口，\':\'分隔</string>
     <string name="hint_listen_port_try">测试监听端口</string>
     <string name="hint_timeout_ms">超时ms</string>
     <string name="hint_connect_ip_try">测试外联IP</string>
@@ -29,6 +30,8 @@
     <string name="hint_write_content">输入要写入的内容</string>
     <string name="hint_ro_path">只读规则目录列表，\':\'分隔</string>
     <string name="hint_rw_path">读写规则目录列表，\':\'分隔</string>
+    <string name="label_ro_path">只读目录，\":\"分隔</string>
+    <string name="label_rw_path">读写目录，\":\"分隔</string>
 
     <!-- Radio buttons -->
     <string name="radio_enable_ll">启用LL</string>
@@ -86,4 +89,15 @@
     <string name="msg_written_to">\n---已写入内容到: </string>
     <string name="msg_write_failed">\n---写入文件失败: </string>
     <string name="msg_landlock_not_supported">本机不支持landlock，不进行后续测试\n</string>
+
+    <!-- Settings -->
+    <string name="title_settings">设置</string>
+    <string name="label_landlock_impl">Landlock 接口实现方式</string>
+    <string name="radio_impl_native">使用自带接口（app内置native接口）</string>
+    <string name="radio_impl_reflect">使用反射调用框架接口</string>
+    <string name="msg_impl_switched_native">已切换为使用自带接口</string>
+    <string name="msg_impl_switched_reflect">已切换为使用反射调用框架接口</string>
+    <string name="msg_reflect_available">框架接口反射加载成功，可正常使用</string>
+    <string name="msg_reflect_unavailable">框架接口反射加载失败，当前框架不支持</string>
+    <string name="btn_settings">设置</string>
 </resources>

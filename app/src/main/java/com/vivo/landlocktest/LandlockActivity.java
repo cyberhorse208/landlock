@@ -11,6 +11,7 @@ import android.os.Environment;
 import android.provider.Settings;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
@@ -25,8 +26,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.vivo.kmirrors.security.Landlock;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,15 +39,31 @@ import java.util.List;
 
 public class LandlockActivity extends AppCompatActivity {
     private final static String TAG = "LandlockActivity";
+
+    private static final String KEY_ED_READ_FILENAME = "ed_read_filename";
+    private static final String KEY_ED_WRITE_FILENAME = "ed_write_filename";
+    private static final String KEY_ED_CONNECT_TIMEOUT = "ed_connect_timeout";
+    private static final String KEY_ED_LISTEN_TIMEOUT = "ed_listen_timeout";
+    private static final String KEY_ED_LISTEN_PORT_ALLOWED = "ed_listen_port_allowed";
+    private static final String KEY_ED_CONNECT_PORT_ALLOWED = "ed_connect_port_allowed";
+    private static final String KEY_ED_RO_PATH_ALLOWED = "ed_ro_path_allowed";
+    private static final String KEY_ED_RW_PATH_ALLOWED = "ed_rw_path_allowed";
+    private static final String KEY_ED_INPUT_CONTENT = "ed_input_content";
+    private static final String KEY_RADIO_GROUP_CHECKED = "radio_group_checked";
+    private static final String KEY_RADIO_GROUP2_CHECKED = "radio_group2_checked";
+    private static final String KEY_OUTPUT_VERSION = "output_version";
+    private static final String KEY_OUTPUT_TEXT = "output_text";
+
+    private ILandlock landlock;
     private String readfilename = "";
     private String writefilename = "";
     private String listen_port_allowed = "";
     private String listen_port_try = "";
-    private int listen_timeout = 1000; // ms
+    private int listen_timeout = 10000; // ms
     private String connect_port_allowed = "";
     private String connect_port_try = "";
     private String connect_ip_try = "";
-    private int connect_timeout = 1000;//ms
+    private int connect_timeout = 10000;//ms
 
     private void LoadFileArgs() {
         EditText ed_landlock_read_filename_try = findViewById(R.id.ed_landlock_read_filename_try);
@@ -117,7 +132,7 @@ public class LandlockActivity extends AppCompatActivity {
         return jobCount != 0;
     }
 
-    private void checkThenAdd(Landlock landlock, ArrayList<String> paths, String path) {
+    private void checkThenAdd(ILandlock landlock, ArrayList<String> paths, String path) {
         int ret = landlock.canBeLandlock(path);
         if (ret == 0) {
             paths.add(path);
@@ -127,7 +142,7 @@ public class LandlockActivity extends AppCompatActivity {
         }
     }
 
-    private String setLandlockFileRules(Landlock landlock){
+    private String setLandlockFileRules(ILandlock landlock){
         String message = "";
         EditText ed_landlock_RO_path_allowed = findViewById(R.id.landlock_RO_path_allowed);
         EditText ed_landlock_RW_path_allowed = findViewById(R.id.landlock_RW_path_allowed);
@@ -157,7 +172,7 @@ public class LandlockActivity extends AppCompatActivity {
         message += getString(R.string.msg_ro_dirs) + roPaths.toString() + "\n";
         message += getString(R.string.msg_rw_dirs) + rwPaths.toString() + "\n";
 
-        int ret = landlock.SetFileRules(roPaths, rwPaths);
+        int ret = landlock.setFileRules(roPaths, rwPaths);
         if (ret == 0) {
             message += getString(R.string.msg_file_rules_ok);
         } else {
@@ -166,7 +181,7 @@ public class LandlockActivity extends AppCompatActivity {
         return message;
     }
 
-    private String setLandlockNetRules(Landlock landlock){
+    private String setLandlockNetRules(ILandlock landlock){
         String message = "";
         ArrayList<String> listen_port_allowed_array = new ArrayList<>(), connect_port_allowed_array = new ArrayList<>();
         String[] parts = listen_port_allowed.split(":");
@@ -188,7 +203,7 @@ public class LandlockActivity extends AppCompatActivity {
         message += getString(R.string.msg_listen_ports) + listen_port_allowed_array + "\n";
         message += getString(R.string.msg_connect_ports) + connect_port_allowed_array + "\n";
 
-        int ret = landlock.SetPortRules(listen_port_allowed_array, connect_port_allowed_array);
+        int ret = landlock.setPortRules(listen_port_allowed_array, connect_port_allowed_array);
         if (ret == 0) {
             message += getString(R.string.msg_net_rules_ok);
         } else {
@@ -248,7 +263,7 @@ public class LandlockActivity extends AppCompatActivity {
             }
         }
 
-        Landlock landlock = new Landlock();
+        landlock = LandlockPrefs.createLandlock(this);
 
         TextView text_output_version = findViewById(R.id.tv_landlock_version_output);
         Button btn_landlock_getversion = findViewById(R.id.btn_landlock_getversion);
@@ -435,6 +450,73 @@ public class LandlockActivity extends AppCompatActivity {
             }
         });
 
+        if (savedInstanceState != null) {
+            restoreInputState(savedInstanceState, radioGroup, radioGroup2, text_output_version, text_output);
+        }
+    }
+
+    private void restoreInputState(Bundle state, RadioGroup radioGroup, RadioGroup radioGroup2,
+                                    TextView text_output_version, TextView text_output) {
+        setEditTextValue(R.id.ed_landlock_read_filename_try, state.getString(KEY_ED_READ_FILENAME));
+        setEditTextValue(R.id.ed_landlock_write_filename_try, state.getString(KEY_ED_WRITE_FILENAME));
+        setEditTextValue(R.id.landlock_connect_timeout, state.getString(KEY_ED_CONNECT_TIMEOUT));
+        setEditTextValue(R.id.landlock_listen_timeout, state.getString(KEY_ED_LISTEN_TIMEOUT));
+        setEditTextValue(R.id.landlock_listen_port_allowed, state.getString(KEY_ED_LISTEN_PORT_ALLOWED));
+        setEditTextValue(R.id.landlock_connect_port_allowed, state.getString(KEY_ED_CONNECT_PORT_ALLOWED));
+        setEditTextValue(R.id.landlock_RO_path_allowed, state.getString(KEY_ED_RO_PATH_ALLOWED));
+        setEditTextValue(R.id.landlock_RW_path_allowed, state.getString(KEY_ED_RW_PATH_ALLOWED));
+        setEditTextValue(R.id.landlock_input_content, state.getString(KEY_ED_INPUT_CONTENT));
+
+        int checkedId = state.getInt(KEY_RADIO_GROUP_CHECKED, -1);
+        if (checkedId != -1) {
+            radioGroup.check(checkedId);
+        }
+        int checkedId2 = state.getInt(KEY_RADIO_GROUP2_CHECKED, -1);
+        if (checkedId2 != -1) {
+            radioGroup2.check(checkedId2);
+        }
+
+        text_output_version.setText(state.getString(KEY_OUTPUT_VERSION, ""));
+        text_output.setText(state.getString(KEY_OUTPUT_TEXT, ""));
+    }
+
+    private void setEditTextValue(int viewId, String value) {
+        if (value == null) {
+            return;
+        }
+        EditText editText = findViewById(viewId);
+        if (editText != null) {
+            editText.setText(value);
+        }
+    }
+
+    private String getEditTextValue(int viewId) {
+        EditText editText = findViewById(viewId);
+        return editText != null ? editText.getText().toString() : "";
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString(KEY_ED_READ_FILENAME, getEditTextValue(R.id.ed_landlock_read_filename_try));
+        outState.putString(KEY_ED_WRITE_FILENAME, getEditTextValue(R.id.ed_landlock_write_filename_try));
+        outState.putString(KEY_ED_CONNECT_TIMEOUT, getEditTextValue(R.id.landlock_connect_timeout));
+        outState.putString(KEY_ED_LISTEN_TIMEOUT, getEditTextValue(R.id.landlock_listen_timeout));
+        outState.putString(KEY_ED_LISTEN_PORT_ALLOWED, getEditTextValue(R.id.landlock_listen_port_allowed));
+        outState.putString(KEY_ED_CONNECT_PORT_ALLOWED, getEditTextValue(R.id.landlock_connect_port_allowed));
+        outState.putString(KEY_ED_RO_PATH_ALLOWED, getEditTextValue(R.id.landlock_RO_path_allowed));
+        outState.putString(KEY_ED_RW_PATH_ALLOWED, getEditTextValue(R.id.landlock_RW_path_allowed));
+        outState.putString(KEY_ED_INPUT_CONTENT, getEditTextValue(R.id.landlock_input_content));
+
+        RadioGroup radioGroup = findViewById(R.id.radio_group);
+        RadioGroup radioGroup2 = findViewById(R.id.radio_group2);
+        outState.putInt(KEY_RADIO_GROUP_CHECKED, radioGroup != null ? radioGroup.getCheckedRadioButtonId() : -1);
+        outState.putInt(KEY_RADIO_GROUP2_CHECKED, radioGroup2 != null ? radioGroup2.getCheckedRadioButtonId() : -1);
+
+        TextView text_output_version = findViewById(R.id.tv_landlock_version_output);
+        TextView text_output = findViewById(R.id.landlock_text_output);
+        outState.putString(KEY_OUTPUT_VERSION, text_output_version != null ? text_output_version.getText().toString() : "");
+        outState.putString(KEY_OUTPUT_TEXT, text_output != null ? text_output.getText().toString() : "");
     }
 
     private static final int REQUEST_MEDIA_PERMISSIONS = 1001;
@@ -477,6 +559,14 @@ public class LandlockActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        // Re-create the ILandlock instance according to the latest preference,
+        // in case the user just switched implementation in SettingsActivity.
+        landlock = LandlockPrefs.createLandlock(this);
+    }
+
+    @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -492,9 +582,19 @@ public class LandlockActivity extends AppCompatActivity {
     }
 
     @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_landlock, menu);
+        return true;
+    }
+
+    @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
             finish();
+            return true;
+        }
+        if (item.getItemId() == R.id.action_settings) {
+            startActivity(new Intent(this, SettingsActivity.class));
             return true;
         }
         return super.onOptionsItemSelected(item);

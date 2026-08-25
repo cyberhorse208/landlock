@@ -348,9 +348,9 @@ Java_com_vivo_kmirrors_security_Landlock_SetFileRules(JNIEnv *env, jobject thiz,
     }
     out:
         close(ruleset_fd);
-        if(!roPaths)
+        if(roPaths)
             free(roPaths);
-        if(!rwPaths)
+        if(rwPaths)
             free(rwPaths);
         return ret;
 }
@@ -485,9 +485,9 @@ jobject ConnectPorts){
     }
     out:
     close(ruleset_fd);
-    if(!bindPorts)
+    if(bindPorts)
         free(bindPorts);
-    if(!connectPorts)
+    if(connectPorts)
         free(connectPorts);
     return ret;
 }

@@ -1,0 +1,248 @@
+PD2509:/data/local/tmp/landlock # sh landlock_android_test.sh
+Landlock Android 测试脚本
+运行时间: Tue Aug 11 17:13:58 CST 2026
+内核版本: 6.12.23-android16-5-g7c1099ce4714-4k
+日志文件: /data/local/tmp/landlock//test_result_20260811_171358.log
+
+
+============================================================
+  环境检查
+============================================================
+[WARN] 未检测到 landlock: Up and running，Landlock 可能未加载
+       继续执行测试，但可能全部失败
+[OK] CONFIG_SECURITY_LANDLOCK=y 已设置（CONFIG_SECURITY_LANDLOCK=y）
+[OK] sandboxer: /data/local/tmp/landlock/execute/sandboxer
+[OK] sandboxer-test: /data/local/tmp/landlock/execute/sandboxer-test
+
+>>> 准备测试文件...
+  [已存在] /data/local/tmp/landlock/files/ro/readme.txt
+  [已存在] /data/media/0/Download/hello.txt
+  [已存在] /data/media/0/Android/data/com.vivo.landlocktest/files/message.txt
+  [OK] 测试文件准备完成
+
+============================================================
+  测试组1: 非fuse文件系统测试
+============================================================
+
+============================================================
+  T1.1: 非fuse — 读写目录都包括
+============================================================
+命令: LL_FS_RO="/apex/:/linkerconfig:/data/local/tmp/landlock/execute:/data/local/tmp/landlock/files/ro" LL_FS_RW="/data/local/tmp/landlock/files/rw" LL_FORCE_LOG=1 /data/local/tmp/landlock/execute/sandboxer -p /data/local/tmp/landlock/execute/sandboxer-test -r /data/local/tmp/landlock/files/ro/readme.txt -w /data/local/tmp/landlock/files/rw/writeme.txt
+Executing the sandboxed command...
+
+=== try to read file: '/data/local/tmp/landlock/files/ro/readme.txt' ===
+hello world
+
+===read finished (1 lines, 12 bytes) ===
+=== try to write file: '/data/local/tmp/landlock/files/rw/writeme.txt' ===
+
+=== written content: hello world [2026-08-11 09:13:58]
+--- done ===
+  [PASS] 读操作成功
+  [PASS] 写操作成功
+  >>> 测试结果: PASS (2/6)
+
+============================================================
+  T1.2: 非fuse — 读目录包括，写目录不包括
+============================================================
+命令: LL_FS_RO="/apex/:/linkerconfig:/data/local/tmp/landlock/execute:/data/local/tmp/landlock/files/ro" LL_FS_RW="/data/local/tmp/landlock/files/rw-bak" LL_FORCE_LOG=1 /data/local/tmp/landlock/execute/sandboxer -p /data/local/tmp/landlock/execute/sandboxer-test -r /data/local/tmp/landlock/files/ro/readme.txt -w /data/local/tmp/landlock/files/rw/writeme.txt
+Executing the sandboxed command...
+
+=== try to read file: '/data/local/tmp/landlock/files/ro/readme.txt' ===
+hello world
+
+===read finished (1 lines, 12 bytes) ===
+=== try to write file: '/data/local/tmp/landlock/files/rw/writeme.txt' ===
+[ERROR] Failed to open output file '/data/local/tmp/landlock/files/rw/writeme.txt': Permission denied
+  [PASS] 读操作成功
+  [PASS] 写操作被Landlock拒绝
+  >>> 测试结果: PASS (2/6)
+
+============================================================
+  T1.3: 非fuse — 读目录不包含，写目录包含
+============================================================
+命令: LL_FS_RO="/apex/:/linkerconfig:/data/local/tmp/landlock/execute" LL_FS_RW="/data/local/tmp/landlock/files/rw" LL_FORCE_LOG=1 /data/local/tmp/landlock/execute/sandboxer -p /data/local/tmp/landlock/execute/sandboxer-test -r /data/local/tmp/landlock/files/ro/readme.txt -w /data/local/tmp/landlock/files/rw/writeme.txt
+Executing the sandboxed command...
+
+=== try to read file: '/data/local/tmp/landlock/files/ro/readme.txt' ===
+[ERROR] Failed to open input file '/data/local/tmp/landlock/files/ro/readme.txt': Permission denied
+=== try to write file: '/data/local/tmp/landlock/files/rw/writeme.txt' ===
+
+=== written content: hello world [2026-08-11 09:13:59]
+--- done ===
+  [PASS] 读操作被Landlock拒绝
+  [PASS] 写操作成功
+  >>> 测试结果: PASS (2/6)
+
+============================================================
+  测试组2: fuse文件系统测试 [fuse-bpf /Storage/emulated/0/Android/data路径]
+============================================================
+>>> fuse 挂载信息:
+/dev/block/dm-50 on /data type f2fs (rw,lazytime,seclabel,nosuid,nodev,noatime,background_gc=on,nogc_merge,discard,discard_unit=block,user_xattr,inline_xattr,acl,inline_data,inline_dentry,noflush_merge,barrier,extent_cache,mode=adaptive,active_logs=6,reserve_root=134217,reserve_node=8192,resuid=0,resgid=1065,inlinecrypt,alloc_mode=default,checkpoint_merge,fsync_mode=nobarrier,compress_algorithm=zstd:1,compress_log_size=3,compress_mode=user,compress_cache,memory=normal,errors=continue,lookup_mode=perf)
+/dev/fuse on /storage/emulated type fuse (rw,lazytime,nosuid,nodev,noexec,noatime,user_id=0,group_id=0,allow_other)
+
+
+============================================================
+  T2.1: fuse-bpf Android/data — 规则：/data路径，读包含，写包含，操作： /data路径
+============================================================
+命令: LL_FS_RO="/apex/:/linkerconfig:/data/local/tmp/landlock/execute:/data/media/0/Android/data/com.vivo.landlocktest" LL_FS_RW="/data/media/0/Android/data/com.vivo.landlocktest" LL_FORCE_LOG=1 /data/local/tmp/landlock/execute/sandboxer -p /data/local/tmp/landlock/execute/sandboxer-test -r /data/media/0/Android/data/com.vivo.landlocktest/files/message.txt -w /data/media/0/Android/data/com.vivo.landlocktest/files/write.txt
+Executing the sandboxed command...
+
+=== try to read file: '/data/media/0/Android/data/com.vivo.landlocktest/files/message.txt' ===
+2026-08-06 11:31:24: just make sure file path exist!!
+2026-08-06 11:33:52: just make sure file path exist!!
+2026-08-06 11:33:52: just make sure file path exist!!
+2026-08-06 11:34:47: just make sure file path exist!!
+2026-08-06 11:34:48: just make sure file path exist!!
+2026-08-06 11:37:01: just make sure file path exist!!
+2026-08-06 11:37:02: just make sure file path exist!!
+2026-08-11 15:00:38: just make sure file path exist!!
+2026-08-11 15:02:29: just make sure file path exist!!
+===read finished (9 lines, 485 bytes) ===
+=== try to write file: '/data/media/0/Android/data/com.vivo.landlocktest/files/write.txt' ===
+
+=== written content: hello world [2026-08-11 09:13:59]
+--- done ===
+  [PASS] 读操作成功
+  [PASS] 写操作成功
+  >>> 测试结果: PASS (2/6)
+
+============================================================
+  T2.2: fuse-bpf Android/data — 规则：读写都不包含，操作： /data路径
+============================================================
+命令: LL_FS_RO="/apex/:/linkerconfig:/data/local/tmp/landlock/execute:/data/media/0/Download" LL_FS_RW="/data/media/0/Download" LL_FORCE_LOG=1 /data/local/tmp/landlock/execute/sandboxer -p /data/local/tmp/landlock/execute/sandboxer-test -r /data/media/0/Android/data/com.vivo.landlocktest/files/message.txt -w /data/media/0/Android/data/com.vivo.landlocktest/files/write.txt
+Executing the sandboxed command...
+
+=== try to read file: '/data/media/0/Android/data/com.vivo.landlocktest/files/message.txt' ===
+[ERROR] Failed to open input file '/data/media/0/Android/data/com.vivo.landlocktest/files/message.txt': Permission denied
+=== try to write file: '/data/media/0/Android/data/com.vivo.landlocktest/files/write.txt' ===
+[ERROR] Failed to open output file '/data/media/0/Android/data/com.vivo.landlocktest/files/write.txt': Permission denied
+  [PASS] 读操作被Landlock拒绝
+  [PASS] 写操作被Landlock拒绝
+  >>> 测试结果: PASS (2/6)
+
+============================================================
+  T2.3: fuse-bpf Android/data — 规则：/data路径，读包含，写包含， 操作：/storage路径
+============================================================
+命令: LL_FS_RO="/apex/:/linkerconfig:/data/local/tmp/landlock/execute:/data/media/0/Android/data/com.vivo.landlocktest" LL_FS_RW="/data/media/0/Android/data/com.vivo.landlocktest" LL_FORCE_LOG=1 /data/local/tmp/landlock/execute/sandboxer -p /data/local/tmp/landlock/execute/sandboxer-test -r /storage/emulated/0/Android/data/com.vivo.landlocktest/files/message.txt -w /storage/emulated/0/Android/data/com.vivo.landlocktest/files/write.txt
+Executing the sandboxed command...
+
+=== try to read file: '/storage/emulated/0/Android/data/com.vivo.landlocktest/files/message.txt' ===
+[ERROR] Failed to open input file '/storage/emulated/0/Android/data/com.vivo.landlocktest/files/message.txt': Permission denied
+=== try to write file: '/storage/emulated/0/Android/data/com.vivo.landlocktest/files/write.txt' ===
+[ERROR] Failed to open output file '/storage/emulated/0/Android/data/com.vivo.landlocktest/files/write.txt': Permission denied
+  [PASS] 读操作被Landlock拒绝
+  [PASS] 写操作被Landlock拒绝
+  >>> 测试结果: PASS (2/6)
+landlock_android_test.sh[501]: can't create /proc/sys/kernel/landlock/fuse_backing_check: No such file or directory
+
+============================================================
+  T2.4: fuse-bpf Android/data — 规则：/storage路径，读包含，写包含，操作：/storage路径
+============================================================
+命令: LL_FS_RO="/apex/:/linkerconfig:/data/local/tmp/landlock/execute:/storage/emulated/0/Android/data/com.vivo.landlocktest" LL_FS_RW="/storage/emulated/0/Android/data/com.vivo.landlocktest" LL_FORCE_LOG=1 /data/local/tmp/landlock/execute/sandboxer -p /data/local/tmp/landlock/execute/sandboxer-test -r /storage/emulated/0/Android/data/com.vivo.landlocktest/files/message.txt -w /storage/emulated/0/Android/data/com.vivo.landlocktest/files/write.txt
+Executing the sandboxed command...
+
+=== try to read file: '/storage/emulated/0/Android/data/com.vivo.landlocktest/files/message.txt' ===
+[ERROR] Failed to open input file '/storage/emulated/0/Android/data/com.vivo.landlocktest/files/message.txt': Permission denied
+=== try to write file: '/storage/emulated/0/Android/data/com.vivo.landlocktest/files/write.txt' ===
+[ERROR] Failed to open output file '/storage/emulated/0/Android/data/com.vivo.landlocktest/files/write.txt': Permission denied
+  [PASS] 读操作被Landlock拒绝
+  [PASS] 写操作被Landlock拒绝
+  >>> 测试结果: PASS (2/6)
+请仔细检查T2.4的结果，是否FAIL/PASS正确，需要根据当前内核是否为修改版本（支持fuse-bpf backing file特性的landlock修改版本）來判斷
+landlock_android_test.sh[501]: can't create /proc/sys/kernel/landlock/fuse_backing_check: No such file or directory
+ echo 1 > /proc/sys/kernel/landlock/fuse_backing_check 失败，跳过 T2.5
+
+============================================================
+  T2.6: fuse-bpf Android/data — 规则：/storage + /data 双重路径，读包含，写包含， 操作：/storage路径
+============================================================
+命令: LL_FS_RO="/apex/:/linkerconfig:/data/local/tmp/landlock/execute:/storage/emulated/0/Android/data/com.vivo.landlocktest:/data/media/0/Android/data/com.vivo.landlocktest" LL_FS_RW="/storage/emulated/0/Android/data/com.vivo.landlocktest:/data/media/0/Android/data/com.vivo.landlocktest" LL_FORCE_LOG=1 /data/local/tmp/landlock/execute/sandboxer -p /data/local/tmp/landlock/execute/sandboxer-test -r /storage/emulated/0/Android/data/com.vivo.landlocktest/files/message.txt -w /storage/emulated/0/Android/data/com.vivo.landlocktest/files/write.txt
+Executing the sandboxed command...
+
+=== try to read file: '/storage/emulated/0/Android/data/com.vivo.landlocktest/files/message.txt' ===
+2026-08-06 11:31:24: just make sure file path exist!!
+2026-08-06 11:33:52: just make sure file path exist!!
+2026-08-06 11:33:52: just make sure file path exist!!
+2026-08-06 11:34:47: just make sure file path exist!!
+2026-08-06 11:34:48: just make sure file path exist!!
+2026-08-06 11:37:01: just make sure file path exist!!
+2026-08-06 11:37:02: just make sure file path exist!!
+2026-08-11 15:00:38: just make sure file path exist!!
+2026-08-11 15:02:29: just make sure file path exist!!
+===read finished (9 lines, 485 bytes) ===
+=== try to write file: '/storage/emulated/0/Android/data/com.vivo.landlocktest/files/write.txt' ===
+
+=== written content: hello world [2026-08-11 09:13:59]
+--- done ===
+  [PASS] 读操作成功
+  [PASS] 写操作成功
+  >>> 测试结果: PASS (2/6)
+
+============================================================
+  测试组3: fuse文件系统测试 [非fuse-bpf路径]
+============================================================
+
+============================================================
+  T3.1: fuse Download — /data/media路径，读写都不包含
+============================================================
+命令: LL_FS_RO="/apex/:/linkerconfig:/data/local/tmp/landlock/execute:/data/media/0/Android/data/com.vivo.landlocktest" LL_FS_RW="/data/media/0/Android/data/com.vivo.landlocktest" LL_FORCE_LOG=1 /data/local/tmp/landlock/execute/sandboxer -p /data/local/tmp/landlock/execute/sandboxer-test -r /data/media/0/Download/hello.txt -w /data/media/0/Download/write.txt
+Executing the sandboxed command...
+
+=== try to read file: '/data/media/0/Download/hello.txt' ===
+[ERROR] Failed to open input file '/data/media/0/Download/hello.txt': Permission denied
+=== try to write file: '/data/media/0/Download/write.txt' ===
+[ERROR] Failed to open output file '/data/media/0/Download/write.txt': Permission denied
+  [PASS] 读操作被Landlock拒绝
+  [PASS] 写操作被Landlock拒绝
+  >>> 测试结果: PASS (2/6)
+
+============================================================
+  T3.2: fuse Download — /storage路径，读写都不包含
+============================================================
+命令: LL_FS_RO="/apex/:/linkerconfig:/data/local/tmp/landlock/execute:/storage/emulated/0/Android/data/com.vivo.landlocktest" LL_FS_RW="/storage/emulated/0/Android/data/com.vivo.landlocktest" LL_FORCE_LOG=1 /data/local/tmp/landlock/execute/sandboxer -p /data/local/tmp/landlock/execute/sandboxer-test -r /storage/emulated/0/Download/hello.txt -w /storage/emulated/0/Download/write.txt
+Executing the sandboxed command...
+
+=== try to read file: '/storage/emulated/0/Download/hello.txt' ===
+[ERROR] Failed to open input file '/storage/emulated/0/Download/hello.txt': Permission denied
+=== try to write file: '/storage/emulated/0/Download/write.txt' ===
+[ERROR] Failed to open output file '/storage/emulated/0/Download/write.txt': Permission denied
+  [PASS] 读操作被Landlock拒绝
+  [PASS] 写操作被Landlock拒绝
+  >>> 测试结果: PASS (2/6)
+
+============================================================
+  T3.3: fuse Download — /data/media路径，读包含，写不包含
+============================================================
+命令: LL_FS_RO="/apex/:/linkerconfig:/data/local/tmp/landlock/execute:/data/media/0/Download" LL_FS_RW="/data/media/0/Android/data/com.vivo.landlocktest" LL_FORCE_LOG=1 /data/local/tmp/landlock/execute/sandboxer -p /data/local/tmp/landlock/execute/sandboxer-test -r /data/media/0/Download/hello.txt -w /data/media/0/Download/write.txt
+Executing the sandboxed command...
+
+=== try to read file: '/data/media/0/Download/hello.txt' ===
+----222222----
+===read finished (1 lines, 14 bytes) ===
+=== try to write file: '/data/media/0/Download/write.txt' ===
+[ERROR] Failed to open output file '/data/media/0/Download/write.txt': Permission denied
+  [FAIL] 读操作成功 (期望包含: 'hello world')
+  [PASS] 写操作被Landlock拒绝
+  >>> 测试结果: FAIL (通过 1, 失败 1)
+
+============================================================
+  T3.4: fuse Download — /storage路径，读包含，写不包含
+============================================================
+命令: LL_FS_RO="/apex/:/linkerconfig:/data/local/tmp/landlock/execute:/storage/emulated/0/Download" LL_FS_RW="/data/media/0/Android/data/com.vivo.landlocktest" LL_FORCE_LOG=1 /data/local/tmp/landlock/execute/sandboxer -p /data/local/tmp/landlock/execute/sandboxer-test -r /storage/emulated/0/Download/hello.txt -w /storage/emulated/0/Download/write.txt
+Executing the sandboxed command...
+
+=== try to read file: '/storage/emulated/0/Download/hello.txt' ===
+----222222----
+===read finished (1 lines, 14 bytes) ===
+=== try to write file: '/storage/emulated/0/Download/write.txt' ===
+[ERROR] Failed to open output file '/storage/emulated/0/Download/write.txt': Permission denied
+  [FAIL] 读操作成功 (期望包含: 'hello world')
+  [PASS] 写操作被Landlock拒绝
+  >>> 测试结果: FAIL (通过 1, 失败 1)
+
+============================================================
+  结果汇总
+============================================================
+  总计: 13  通过: 10  失败: 2  跳过: 1
+
+  >>> 存在 2 个测试失败，请检查日志

@@ -5,6 +5,7 @@
     <!-- Layout labels -->
     <string name="label_landlock_version">Landlock Version</string>
     <string name="label_network_rules">Network Access Rules</string>
+    <string name="label_network_test">Network Access Test</string>
     <string name="label_file_rw_test">File Read/Write Test</string>
     <string name="label_file_rules">File Access Rules</string>
     <string name="label_output">Output</string>
@@ -19,8 +20,8 @@
     <string name="btn_file_rw_main_thread">File R/W (Main Thread, No LL)</string>
 
     <!-- Layout hints -->
-    <string name="hint_listen_port_allowed">Allowed listen ports</string>
-    <string name="hint_connect_port_allowed">Allowed connect ports</string>
+    <string name="hint_listen_port_allowed">Allowed listen ports, separated by \':\'</string>
+    <string name="hint_connect_port_allowed">Allowed connect ports, separated by \':\'</string>
     <string name="hint_listen_port_try">Test listen port</string>
     <string name="hint_timeout_ms">Timeout (ms)</string>
     <string name="hint_connect_ip_try">Test connect IP</string>
@@ -29,6 +30,8 @@
     <string name="hint_write_content">Enter content to write</string>
     <string name="hint_ro_path">Read-only rule dirs, \':\' separated</string>
     <string name="hint_rw_path">Read-write rule dirs, \':\' separated</string>
+    <string name="label_ro_path">Read-only dirs, \":\" separated</string>
+    <string name="label_rw_path">Read-write dirs, \":\" separated</string>
 
     <!-- Radio buttons -->
     <string name="radio_enable_ll">Enable LL</string>
