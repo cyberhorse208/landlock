@@ -412,7 +412,7 @@ main() {
         "${_cmd}" \
         "读操作被Landlock拒绝" "Permission denied" "pass" \
         "写操作被Landlock拒绝" "Permission denied" "pass"
-    log_color "${YELLOW}" "请仔细检查T2.4的结果，是否FAIL/PASS正确，需要根据当前内核是否为修改版本（支持fuse-bpf backing file特性的landlock修改版本）來判斷"
+    log_color "${YELLOW}" "请仔细检查T2.4的结果，是否FAIL/PASS正确，需要根据当前内核是否为修改版本（支持fuse-bpf backing file特性的landlock修改版本）來判斷。如果是修改版本，那么应该正常读写。"
 
 
     if echo 1 > /proc/sys/kernel/landlock/fuse_backing_check ; then
