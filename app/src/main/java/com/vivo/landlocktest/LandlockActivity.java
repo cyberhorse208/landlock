@@ -27,6 +27,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -172,11 +173,18 @@ public class LandlockActivity extends AppCompatActivity {
         message += getString(R.string.msg_ro_dirs) + roPaths.toString() + "\n";
         message += getString(R.string.msg_rw_dirs) + rwPaths.toString() + "\n";
 
-        int ret = landlock.setFileRules(roPaths, rwPaths);
-        if (ret == 0) {
+        // RO and RW rules are accumulated into one shared ruleset and
+        // enforced only once, because several independent restrictions
+        // would intersect and deny everything.
+        int roRet = landlock.setFileRules(ILandlock.FILE_RULE_TYPE_RO, roPaths);
+        int rwRet = landlock.setFileRules(ILandlock.FILE_RULE_TYPE_RW, rwPaths);
+        int enforceRet = landlock.enforceRules();
+        if (roRet == 0 && rwRet == 0 && enforceRet == 0) {
             message += getString(R.string.msg_file_rules_ok);
         } else {
-            message += getString(R.string.msg_file_rules_fail) + String.valueOf(ret) + getString(R.string.msg_landlock_not_active);
+            message += getString(R.string.msg_file_rules_fail)
+                    + " ro=" + roRet + ", rw=" + rwRet + ", enforce=" + enforceRet
+                    + getString(R.string.msg_landlock_not_active);
         }
         return message;
     }
@@ -203,13 +211,94 @@ public class LandlockActivity extends AppCompatActivity {
         message += getString(R.string.msg_listen_ports) + listen_port_allowed_array + "\n";
         message += getString(R.string.msg_connect_ports) + connect_port_allowed_array + "\n";
 
-        int ret = landlock.setPortRules(listen_port_allowed_array, connect_port_allowed_array);
-        if (ret == 0) {
+        // Bind and connect rules are accumulated into one shared
+        // ruleset and enforced only once.
+        int bindRet = landlock.setPortRules(ILandlock.PORT_RULE_TYPE_BIND, listen_port_allowed_array);
+        int connectRet = landlock.setPortRules(ILandlock.PORT_RULE_TYPE_CONNECT, connect_port_allowed_array);
+        int enforceRet = landlock.enforceRules();
+        if (bindRet == 0 && connectRet == 0 && enforceRet == 0) {
             message += getString(R.string.msg_net_rules_ok);
         } else {
-            message += getString(R.string.msg_net_rules_fail) + String.valueOf(ret) + getString(R.string.msg_landlock_not_active);
+            message += getString(R.string.msg_net_rules_fail)
+                    + " bind=" + bindRet + ", connect=" + connectRet + ", enforce=" + enforceRet
+                    + getString(R.string.msg_landlock_not_active);
         }
         return message;
+    }
+
+    /**
+     * Create the ro/rw test directories and their seed files under the app's
+     * internal files dir (/data/data/<package>/files):
+     *   files/ro/hello.txt  -> "hello from ro file"
+     *   files/rw/hola.txt   -> "hola !!!"
+     */
+    private void initLandlockTestDirs() {
+        File filesDir = getFilesDir();
+        if (filesDir == null) {
+            Log.e(TAG, "getFilesDir() returned null, skip test dirs init");
+            return;
+        }
+
+        try {
+            File roDir = new File(filesDir, "ro");
+            File rwDir = new File(filesDir, "rw");
+            if (!roDir.exists() && !roDir.mkdirs()) {
+                Log.e(TAG, "Failed to create dir: " + roDir.getAbsolutePath());
+            }
+            if (!rwDir.exists() && !rwDir.mkdirs()) {
+                Log.e(TAG, "Failed to create dir: " + rwDir.getAbsolutePath());
+            }
+
+            File roFile = new File(roDir, "hello.txt");
+            if (!roFile.exists()) {
+                writeSeedFile(roFile, "hello from ro file\n");
+            }
+
+            File rwFile = new File(rwDir, "hola.txt");
+            if (!rwFile.exists()) {
+                writeSeedFile(rwFile, "hola !!!\n");
+            }
+
+            Log.d(TAG, "test dirs ready: ro=" + roDir.getAbsolutePath()
+                    + ", rw=" + rwDir.getAbsolutePath());
+
+            // Pre-fill the RO/RW rule input fields with the app data dirs.
+            EditText edRoPath = findViewById(R.id.landlock_RO_path_allowed);
+            EditText edRwPath = findViewById(R.id.landlock_RW_path_allowed);
+            if (edRoPath != null && edRoPath.getText().toString().trim().isEmpty()) {
+                edRoPath.setText(roDir.getAbsolutePath());
+            }
+            if (edRwPath != null && edRwPath.getText().toString().trim().isEmpty()) {
+                edRwPath.setText(rwDir.getAbsolutePath());
+            }
+
+            // Pre-fill the file test input fields: read from the RO dir,
+            // write to the RW dir (writing into the RO dir is correctly
+            // denied by Landlock).
+            EditText edReadFile = findViewById(R.id.ed_landlock_read_filename_try);
+            EditText edWriteFile = findViewById(R.id.ed_landlock_write_filename_try);
+            if (edReadFile != null && edReadFile.getText().toString().trim().isEmpty()) {
+                edReadFile.setText(roFile.getAbsolutePath());
+            }
+            if (edWriteFile != null && edWriteFile.getText().toString().trim().isEmpty()) {
+                edWriteFile.setText(rwFile.getAbsolutePath());
+            }
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to init test dirs: " + e.getMessage());
+        }
+    }
+
+    /** Create the file with the given seed content only when it is new. */
+    private void writeSeedFile(File file, String content) throws IOException {
+        if (file.createNewFile()) {
+            FileOutputStream fos = new FileOutputStream(file);
+            try {
+                fos.write(content.getBytes());
+            } finally {
+                fos.close();
+            }
+            Log.d(TAG, "created: " + file.getAbsolutePath());
+        }
     }
 
     private String readFileContent(String filename) {
@@ -264,6 +353,8 @@ public class LandlockActivity extends AppCompatActivity {
         }
 
         landlock = LandlockPrefs.createLandlock(this);
+
+        initLandlockTestDirs();
 
         TextView text_output_version = findViewById(R.id.tv_landlock_version_output);
         Button btn_landlock_getversion = findViewById(R.id.btn_landlock_getversion);
@@ -564,6 +655,8 @@ public class LandlockActivity extends AppCompatActivity {
         // Re-create the ILandlock instance according to the latest preference,
         // in case the user just switched implementation in SettingsActivity.
         landlock = LandlockPrefs.createLandlock(this);
+
+        initLandlockTestDirs();
     }
 
     @Override

@@ -92,16 +92,23 @@ public class ReflectLandlock implements ILandlock {
     }
 
     @Override
-    public int setFileRules(List<String> readOnlyPaths, List<String> readWritePaths) {
-        Object ret = invoke("setFileRules", new Class<?>[]{List.class, List.class},
-                new Object[]{readOnlyPaths, readWritePaths}, -1);
+    public int setFileRules(int ruleType, List<String> paths) {
+        Object ret = invoke("setFileRules", new Class<?>[]{int.class, List.class},
+                new Object[]{ruleType, paths}, -1);
         return ret instanceof Integer ? (Integer) ret : -1;
     }
 
     @Override
-    public int setPortRules(List<String> listenPorts, List<String> connectPorts) {
-        Object ret = invoke("setPortRules", new Class<?>[]{List.class, List.class},
-                new Object[]{listenPorts, connectPorts}, -1);
+    public int setPortRules(int ruleType, List<String> ports) {
+        Object ret = invoke("setPortRules", new Class<?>[]{int.class, List.class},
+                new Object[]{ruleType, ports}, -1);
+        return ret instanceof Integer ? (Integer) ret : -1;
+    }
+
+    @Override
+    public int enforceRules() {
+        Object ret = invoke("enforceRules", new Class<?>[]{},
+                new Object[]{}, -1);
         return ret instanceof Integer ? (Integer) ret : -1;
     }
 

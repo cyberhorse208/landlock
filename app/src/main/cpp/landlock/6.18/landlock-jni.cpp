@@ -121,15 +121,15 @@ static bool populate_ruleset_fs_new(char * env_path_name, const int ruleset_fd,
     };
 
     if (!env_path_name) {
-        /* Prevents users to forget a setting. */
-        LOGE("Missing environment variable: file");
-        return false;
+        /* An empty/null list means an empty whitelist (deny by default). */
+        LOGE("empty path list, whitelist will be empty");
+        return true;
     }
     num_paths = parse_path(env_path_name, &path_list);
     if (num_paths == 1 && path_list[0][0] == '\0') {
         free(path_list);
-        LOGE("no valid paths");
-        return false;
+        LOGE("empty path list, whitelist will be empty");
+        return true;
     }
 
     int count = 0;
@@ -164,7 +164,8 @@ static bool populate_ruleset_fs_new(char * env_path_name, const int ruleset_fd,
     LOGE("add %d paths to ruleset", count);
 
     free(path_list);
-    return count != 0;
+    /* Zero valid paths is a valid state: an empty whitelist. */
+    return true;
 }
 
 
@@ -180,8 +181,9 @@ static bool populate_ruleset_net_new(char * env_ports_name, const int ruleset_fd
     };
 
     if (!env_ports_name){
-        LOGE("Missing environment variable: net");
-        return false;
+        /* An empty/null list means an empty whitelist (deny by default). */
+        LOGE("empty port list, whitelist will be empty");
+        return true;
     }
     int count = 0;
     while ((strport = strsep(&env_ports_name, ENV_DELIMITER))) {
@@ -206,7 +208,8 @@ static bool populate_ruleset_net_new(char * env_ports_name, const int ruleset_fd
     }
 
     LOGE("add %d ports to ruleset", count);
-    return count != 0;
+    /* Zero valid ports is a valid state: an empty whitelist. */
+    return true;
 }
 
 /* clang-format off */
@@ -249,6 +252,10 @@ Java_com_vivo_kmirrors_security_Landlock_isSupport(JNIEnv *env, jobject thiz) {
 
 // Helper function to convert a Java List<String> to a C string in "path1:path2" format
 char* convertJavaListToString(JNIEnv *env, jobject pathList) {
+    if (pathList == nullptr) {
+        // Treated as an empty list: an empty whitelist.
+        return strdup("");
+    }
     // Get the List class and its size method
     jclass listClass = env->GetObjectClass(pathList);
     jmethodID sizeMethod = env->GetMethodID(listClass, "size", "()I");
@@ -258,7 +265,8 @@ char* convertJavaListToString(JNIEnv *env, jobject pathList) {
     jint listSize = env->CallIntMethod(pathList, sizeMethod);
 
     if (listSize == 0) {
-        return nullptr;
+        // An empty list maps to an empty string: an empty whitelist.
+        return strdup("");
     }
     // Determine the total length for the resulting C string
     size_t totalLength = 0;
@@ -290,69 +298,130 @@ char* convertJavaListToString(JNIEnv *env, jobject pathList) {
     return result;
 }
 
+/* File rule types accepted by SetFileRules(). */
+#define LANDLOCK_FILE_RULE_TYPE_RO 1
+#define LANDLOCK_FILE_RULE_TYPE_RW 2
+
+/*
+ * Shared (not yet enforced) ruleset for the file capability. All rule
+ * types (RO/RW) are accumulated into this single ruleset so that the
+ * final restriction is applied only once with the union of all rules.
+ * Restricting several independent rulesets would intersect them and
+ * deny everything, because Landlock rules can only be narrowed.
+ */
+static int g_file_ruleset_fd = -1;
+
+/*
+ * Shared (not yet enforced) ruleset for the network capability. Bind
+ * and connect rules are accumulated into this single ruleset so that
+ * the final restriction is applied only once with the union of all
+ * rules, avoiding intersecting two independent rulesets.
+ */
+static int g_net_ruleset_fd = -1;
+
+/*
+ * Set file rules for a single rule type.
+ * rule_type: 1 = read-only, 2 = read-write.
+ * Semantics: calling this method adds rules to the shared file
+ * ruleset; an empty paths list means an empty whitelist for this type
+ * (no path is allowed). The ruleset is enforced by EnforceFileRules().
+ */
 extern "C"
 JNIEXPORT jint JNICALL
 Java_com_vivo_kmirrors_security_Landlock_SetFileRules(JNIEnv *env, jobject thiz,
-                                                       jobject read_only_paths,
-                                                       jobject read_write_paths) {
-    int ruleset_fd;
+                                                       jint rule_type, jobject paths) {
     __u64 access_fs_ro = ACCESS_FS_ROUGHLY_READ,
             access_fs_rw = ACCESS_FS_ROUGHLY_READ | ACCESS_FS_ROUGHLY_WRITE;
+    __u64 allowed_access;
     struct landlock_ruleset_attr ruleset_attr = {
             .handled_access_fs = access_fs_rw,
     };
 
-    LOGE("Trying to create a file rw ruleset");
-    int ret = 0;
-    ruleset_fd = landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
-    if (ruleset_fd < 0) {
-        LOGE("Failed to create a file rw ruleset");
+    switch (rule_type) {
+    case LANDLOCK_FILE_RULE_TYPE_RO:
+        allowed_access = access_fs_ro;
+        break;
+    case LANDLOCK_FILE_RULE_TYPE_RW:
+        allowed_access = access_fs_rw;
+        break;
+    default:
+        LOGE("invalid file rule type: %d", rule_type);
         return -1;
     }
 
-    char *roPaths = convertJavaListToString(env, read_only_paths);
-    char *rwPaths = convertJavaListToString(env, read_write_paths);
-
-    if (roPaths == nullptr) {
-        LOGE("no readonly ruleset");
-    } else {
-        LOGE("Trying to populate a readonly ruleset");
-        if (!populate_ruleset_fs_new(roPaths, ruleset_fd, access_fs_ro)) {
-            LOGE("Failed to populate a readonly ruleset");
-            ret = -2;
-            goto out;
+    LOGE("Trying to prepare a file ruleset (type=%d)", rule_type);
+    if (g_file_ruleset_fd < 0) {
+        g_file_ruleset_fd = landlock_create_ruleset(&ruleset_attr,
+                                                     sizeof(ruleset_attr), 0);
+        if (g_file_ruleset_fd < 0) {
+            LOGE("Failed to create a file ruleset");
+            return -1;
         }
     }
 
-    if (rwPaths == nullptr) {
-        LOGE("no readwrite ruleset");
-    } else {
-        LOGE("Trying to populate a readwrite ruleset");
-        if (!populate_ruleset_fs_new(rwPaths, ruleset_fd, access_fs_rw)) {
-            LOGE("Failed to populate a readwrite ruleset");
-            ret = -3;
-            goto out;
-        }
+    char *pathList = convertJavaListToString(env, paths);
+    if (pathList == nullptr) {
+        LOGE("Failed to convert the path list");
+        return -2;
+    }
+
+    /* An empty list keeps an empty whitelist for this type. */
+    LOGE("Trying to populate the file ruleset");
+    if (!populate_ruleset_fs_new(pathList, g_file_ruleset_fd, allowed_access)) {
+        LOGE("Failed to populate the file ruleset");
+        free(pathList);
+        return -3;
+    }
+    free(pathList);
+    return 0;
+}
+
+/*
+ * Enforce every accumulated shared ruleset (file, net, and any future
+ * capability) exactly once. Returns 0 when at least one ruleset was
+ * prepared and every restriction was applied successfully; after a
+ * successful call the rulesets are closed and cannot be extended.
+ */
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_vivo_kmirrors_security_Landlock_EnforceRules(JNIEnv *env, jobject thiz) {
+    bool any_prepared = false;
+    bool any_failed = false;
+
+    if (g_file_ruleset_fd < 0 && g_net_ruleset_fd < 0) {
+        LOGE("no ruleset prepared");
+        return -1;
     }
     LOGE("Trying to restrict privileges");
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
         LOGE("Failed to restrict privileges");
-        ret = -4;
-        goto out;
+        return -2;
     }
-    LOGE("Trying to enforce ruleset");
-    if (landlock_restrict_self(ruleset_fd, 0)) {
-        LOGE("Failed to enforce ruleset");
-        ret = -5;
-        goto out;
+
+    if (g_file_ruleset_fd >= 0) {
+        any_prepared = true;
+        LOGE("Trying to enforce file ruleset");
+        if (landlock_restrict_self(g_file_ruleset_fd, 0)) {
+            LOGE("Failed to enforce file ruleset");
+            any_failed = true;
+        }
+        close(g_file_ruleset_fd);
+        g_file_ruleset_fd = -1;
     }
-    out:
-        close(ruleset_fd);
-        if(roPaths)
-            free(roPaths);
-        if(rwPaths)
-            free(rwPaths);
-        return ret;
+    if (g_net_ruleset_fd >= 0) {
+        any_prepared = true;
+        LOGE("Trying to enforce net ruleset");
+        if (landlock_restrict_self(g_net_ruleset_fd, 0)) {
+            LOGE("Failed to enforce net ruleset");
+            any_failed = true;
+        }
+        close(g_net_ruleset_fd);
+        g_net_ruleset_fd = -1;
+    }
+
+    if (!any_prepared || any_failed)
+        return -3;
+    return 0;
 }
 
 
@@ -437,60 +506,67 @@ Java_com_vivo_kmirrors_security_Landlock_canBeLandlock(JNIEnv *env, jobject thiz
     return 0;
 }
 
+/* Port rule types accepted by SetPortRules(). */
+#define LANDLOCK_PORT_RULE_TYPE_BIND 1
+#define LANDLOCK_PORT_RULE_TYPE_CONNECT 2
+
+/*
+ * Set port rules for a single rule type.
+ * rule_type: 1 = bind, 2 = connect.
+ * Semantics: calling this method adds rules to the shared net
+ * ruleset; an empty ports list means an empty whitelist for this type.
+ * The ruleset is enforced by the shared EnforceRules().
+ */
 extern "C"
 JNIEXPORT jint JNICALL
 Java_com_vivo_kmirrors_security_Landlock_SetPortRules(JNIEnv *env, jobject thiz,
-        jobject ListenPorts,
-jobject ConnectPorts){
-    int ruleset_fd;
+        jint rule_type, jobject ports) {
+    __u64 allowed_access;
     struct landlock_ruleset_attr ruleset_attr = {
             .handled_access_net = LANDLOCK_ACCESS_NET_BIND_TCP |
                                   LANDLOCK_ACCESS_NET_CONNECT_TCP,
     };
-    LOGE("Trying to create a net ruleset");
-    int ret = 0;
-    ruleset_fd = landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
-    if (ruleset_fd < 0) {
-        LOGE("Failed to create a net ruleset");
+
+    switch (rule_type) {
+    case LANDLOCK_PORT_RULE_TYPE_BIND:
+        allowed_access = LANDLOCK_ACCESS_NET_BIND_TCP;
+        break;
+    case LANDLOCK_PORT_RULE_TYPE_CONNECT:
+        allowed_access = LANDLOCK_ACCESS_NET_CONNECT_TCP;
+        break;
+    default:
+        LOGE("invalid port rule type: %d", rule_type);
         return -1;
     }
-    char *bindPorts = convertJavaListToString(env, ListenPorts);
-    char *connectPorts = convertJavaListToString(env, ConnectPorts);
 
-    LOGE("Trying to populate a LANDLOCK_ACCESS_NET_BIND_TCP ruleset");
-    if (!populate_ruleset_net_new(bindPorts, ruleset_fd,
-                              LANDLOCK_ACCESS_NET_BIND_TCP)) {
-        LOGE("Failed to populate a LANDLOCK_ACCESS_NET_BIND_TCP ruleset");
-        ret = -2;
-        goto out;
+    LOGE("Trying to prepare a net ruleset (type=%d)", rule_type);
+    if (g_net_ruleset_fd < 0) {
+        g_net_ruleset_fd = landlock_create_ruleset(&ruleset_attr,
+                                                    sizeof(ruleset_attr), 0);
+        if (g_net_ruleset_fd < 0) {
+            LOGE("Failed to create a net ruleset");
+            return -1;
+        }
     }
-    LOGE("Trying to populate a LANDLOCK_ACCESS_NET_CONNECT_TCP ruleset");
-    if (!populate_ruleset_net_new(connectPorts, ruleset_fd,
-                              LANDLOCK_ACCESS_NET_CONNECT_TCP)) {
-        LOGE("Failed to populate a LANDLOCK_ACCESS_NET_CONNECT_TCP ruleset");
-        ret = -3;
-        goto out;
+
+    char *portList = convertJavaListToString(env, ports);
+    if (portList == nullptr) {
+        LOGE("Failed to convert the port list");
+        return -2;
     }
-    LOGE("Trying to restrict privileges");
-    if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
-        LOGE("Failed to restrict privileges");
-        ret = -4;
-        goto out;
+
+    /* An empty list keeps an empty whitelist for this type. */
+    LOGE("Trying to populate the net ruleset");
+    if (!populate_ruleset_net_new(portList, g_net_ruleset_fd, allowed_access)) {
+        LOGE("Failed to populate the net ruleset");
+        free(portList);
+        return -3;
     }
-    LOGE("Trying to enforce ruleset");
-    if (landlock_restrict_self(ruleset_fd, 0)) {
-        LOGE("Failed to enforce ruleset");
-        ret = -5;
-        goto out;
-    }
-    out:
-    close(ruleset_fd);
-    if(bindPorts)
-        free(bindPorts);
-    if(connectPorts)
-        free(connectPorts);
-    return ret;
+    free(portList);
+    return 0;
 }
+
+/* Net ruleset is enforced by the shared EnforceRules() above. */
 
 extern "C"
 JNIEXPORT jboolean JNICALL

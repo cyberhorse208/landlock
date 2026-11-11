@@ -35,15 +35,21 @@ public class NativeLandlock implements ILandlock {
     }
 
     @Override
-    public int setFileRules(List<String> readOnlyPaths, List<String> readWritePaths) {
-        Log.d(TAG, "[native] setFileRules() called, readOnlyPaths=" + readOnlyPaths + ", readWritePaths=" + readWritePaths);
-        return landlock.SetFileRules(readOnlyPaths, readWritePaths);
+    public int setFileRules(int ruleType, List<String> paths) {
+        Log.d(TAG, "[native] setFileRules() called, ruleType=" + ruleType + ", paths=" + paths);
+        return landlock.SetFileRules(ruleType, paths);
     }
 
     @Override
-    public int setPortRules(List<String> listenPorts, List<String> connectPorts) {
-        Log.d(TAG, "[native] setPortRules() called, listenPorts=" + listenPorts + ", connectPorts=" + connectPorts);
-        return landlock.SetPortRules(listenPorts, connectPorts);
+    public int setPortRules(int ruleType, List<String> ports) {
+        Log.d(TAG, "[native] setPortRules() called, ruleType=" + ruleType + ", ports=" + ports);
+        return landlock.SetPortRules(ruleType, ports);
+    }
+
+    @Override
+    public int enforceRules() {
+        Log.d(TAG, "[native] enforceRules() called");
+        return landlock.EnforceRules();
     }
 
     @Override

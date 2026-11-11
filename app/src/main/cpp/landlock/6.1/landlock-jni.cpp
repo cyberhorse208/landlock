@@ -95,16 +95,13 @@ static int populate_ruleset_new(char * env_path_name, const int ruleset_fd,
     };
 
     if (!env_path_name) {
-        /* Prevents users to forget a setting. */
-        fprintf(stderr, "Missing environment variable\n");
-        return 1;
+        /* An empty/null list means an empty whitelist (deny by default). */
+        fprintf(stderr, "empty path list, whitelist will be empty\n");
+        return 0;
     }
     num_paths = parse_path(env_path_name, &path_list);
     if (num_paths == 1 && path_list[0][0] == '\0') {
-        /*
-         * Allows to not use all possible restrictions (e.g. use
-         * LL_FS_RO without LL_FS_RW).
-         */
+        /* An empty list means an empty whitelist. */
         ret = 0;
         goto out_free_name;
     }
@@ -139,7 +136,7 @@ static int populate_ruleset_new(char * env_path_name, const int ruleset_fd,
 
     out_free_name:
     free(path_list);
-    free(env_path_name);
+    /* env_path_name is owned (and freed) by the caller. */
     return ret;
 }
 
@@ -183,6 +180,10 @@ Java_com_vivo_kmirrors_security_Landlock_isSupport(JNIEnv *env, jobject thiz) {
 
 // Helper function to convert a Java List<String> to a C string in "path1:path2" format
 char* convertJavaListToString(JNIEnv *env, jobject pathList) {
+    if (pathList == NULL) {
+        // Treated as an empty list: an empty whitelist.
+        return strdup("");
+    }
     // Get the List class and its size method
     jclass listClass = env->GetObjectClass(pathList);
     jmethodID sizeMethod = env->GetMethodID(listClass, "size", "()I");
@@ -190,6 +191,11 @@ char* convertJavaListToString(JNIEnv *env, jobject pathList) {
 
     // Get the size of the list
     jint listSize = env->CallIntMethod(pathList, sizeMethod);
+
+    if (listSize == 0) {
+        // An empty list maps to an empty string: an empty whitelist.
+        return strdup("");
+    }
 
     // Determine the total length for the resulting C string
     size_t totalLength = 0;
@@ -221,63 +227,101 @@ char* convertJavaListToString(JNIEnv *env, jobject pathList) {
     return result;
 }
 
+/* File rule types accepted by SetFileRules(). */
+#define LANDLOCK_FILE_RULE_TYPE_RO 1
+#define LANDLOCK_FILE_RULE_TYPE_RW 2
+
+/*
+ * Shared (not yet enforced) ruleset for the file capability. All rule
+ * types (RO/RW) are accumulated into this single ruleset so that the
+ * final restriction is applied only once with the union of all rules.
+ * Restricting several independent rulesets would intersect them and
+ * deny everything, because Landlock rules can only be narrowed.
+ */
+static int g_file_ruleset_fd = -1;
+
+/*
+ * Set file rules for a single rule type.
+ * rule_type: 1 = read-only, 2 = read-write.
+ * Semantics: calling this method adds rules to the shared file
+ * ruleset; an empty paths list means an empty whitelist for this type
+ * (no path is allowed). The ruleset is enforced by EnforceFileRules().
+ */
 extern "C"
 JNIEXPORT jint JNICALL
 Java_com_vivo_kmirrors_security_Landlock_SetFileRules(JNIEnv *env, jobject thiz,
-                                                       jobject read_only_paths,
-                                                       jobject read_write_paths) {
-    int ruleset_fd;
+                                                       jint rule_type, jobject paths) {
     __u64 access_fs_ro = ACCESS_FS_ROUGHLY_READ,
             access_fs_rw = ACCESS_FS_ROUGHLY_READ | ACCESS_FS_ROUGHLY_WRITE;
+    __u64 allowed_access;
     struct landlock_ruleset_attr ruleset_attr = {
             .handled_access_fs = access_fs_rw,
     };
 
-    access_fs_ro &= ruleset_attr.handled_access_fs;
-    access_fs_rw &= ruleset_attr.handled_access_fs;
-
-
-    ruleset_fd =
-            landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
-    if (ruleset_fd < 0) {
-        perror("Failed to create a ruleset");
+    switch (rule_type) {
+    case LANDLOCK_FILE_RULE_TYPE_RO:
+        allowed_access = access_fs_ro;
+        break;
+    case LANDLOCK_FILE_RULE_TYPE_RW:
+        allowed_access = access_fs_rw;
+        break;
+    default:
+        fprintf(stderr, "invalid file rule type: %d\n", rule_type);
         return -1;
     }
+    allowed_access &= ruleset_attr.handled_access_fs;
 
-    char *roPaths = convertJavaListToString(env, read_only_paths);
-    char *rwPaths = convertJavaListToString(env, read_write_paths);
+    if (g_file_ruleset_fd < 0) {
+        g_file_ruleset_fd =
+                landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+        if (g_file_ruleset_fd < 0) {
+            perror("Failed to create a ruleset");
+            return -1;
+        }
+    }
 
-    if (populate_ruleset_new(roPaths, ruleset_fd, access_fs_ro)) {
-        close(ruleset_fd);
-        perror("Failed to populate a readonly ruleset");
-        free(roPaths);
-        free(rwPaths);
+    char *pathList = convertJavaListToString(env, paths);
+    if (pathList == NULL) {
+        perror("Failed to convert the path list");
         return -2;
     }
-    if (populate_ruleset_new(rwPaths, ruleset_fd, access_fs_rw)) {
-        close(ruleset_fd);
-        perror("Failed to populate a readwrite ruleset");
-        free(roPaths);
-        free(rwPaths);
+
+    /* An empty list keeps an empty whitelist for this type. */
+    if (populate_ruleset_new(pathList, g_file_ruleset_fd, allowed_access)) {
+        perror("Failed to populate the file ruleset");
+        free(pathList);
         return -3;
+    }
+    free(pathList);
+    return 0;
+}
+
+/*
+ * Enforce every accumulated shared ruleset (currently only the file
+ * ruleset; any future capability joins here) exactly once. Returns 0
+ * when at least one ruleset was prepared and every restriction was
+ * applied successfully; after a successful call the rulesets are
+ * closed and cannot be extended.
+ */
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_vivo_kmirrors_security_Landlock_EnforceRules(JNIEnv *env, jobject thiz) {
+    if (g_file_ruleset_fd < 0) {
+        fprintf(stderr, "no ruleset prepared\n");
+        return -1;
     }
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
         perror("Failed to restrict privileges");
-        close(ruleset_fd);
-        free(roPaths);
-        free(rwPaths);
-        return -4;
+        return -2;
     }
-    if (landlock_restrict_self(ruleset_fd, 0)) {
+    if (landlock_restrict_self(g_file_ruleset_fd, 0)) {
         perror("Failed to enforce ruleset");
-        close(ruleset_fd);
-        free(roPaths);
-        free(rwPaths);
-        return -5;
+        close(g_file_ruleset_fd);
+        g_file_ruleset_fd = -1;
+        return -3;
     }
-    close(ruleset_fd);
-    free(roPaths);
-    free(rwPaths);
+    close(g_file_ruleset_fd);
+    g_file_ruleset_fd = -1;
     return 0;
 }
 
